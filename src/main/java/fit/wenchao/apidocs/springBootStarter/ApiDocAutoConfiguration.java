@@ -7,7 +7,8 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 @ComponentScan(basePackages = {
-        "fit.wenchao.apidocs.web"
+        "fit.wenchao.apidocs.web",
+        "fit.wenchao.apidocs.apiInfoPlugins"
 })
 @EnableConfigurationProperties(ApiDocProperties.class)
 public class ApiDocAutoConfiguration {
