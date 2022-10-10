@@ -30,16 +30,6 @@ public class ClasspathPackageScanner {
     }
 
     /**
-     * Construct an instance with base package and class loader.
-     * @param basePackage The base package to scan.
-     * @param cl Use this class load to locate the package.
-     */
-    public ClasspathPackageScanner(String basePackage, ClassLoader cl) {
-        this.basePackage = basePackage;
-        this.cl = cl;
-    }
-
-    /**
      * Get all fully qualified names located in the specified package
      * and its sub-package.
      *
@@ -170,9 +160,6 @@ public class ClasspathPackageScanner {
         return name.endsWith(".jar");
     }
 
-    /**
-     * For test purpose.
-     */
     public static void main(String[] args) throws Exception {
         ClasspathPackageScanner scan = new ClasspathPackageScanner("fit.wenchao.ldapauthdemo.controller");
         List<String> fullyQualifiedClassNameList = scan.getFullyQualifiedClassNameList();

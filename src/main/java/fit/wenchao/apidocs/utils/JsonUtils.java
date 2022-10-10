@@ -12,74 +12,223 @@ import java.lang.reflect.Type;
 import java.util.*;
 import java.util.function.Function;
 
+import static fit.wenchao.apidocs.utils.ReflectUtils.*;
+
 
 public class JsonUtils {
-    public static JSONObject getJsonExample(Class<?> clazz) {
-        JSONObject root = getValueJson(clazz);
-        return root;
-    }
 
     /**
-     * 获取类型为 valueClass 的一个JSONObject对象
+     * 从指定的Class对象生成一个 Json 实例
      *
-     * @param valueClass 目标class
+     * @param clazz 目标Class对象
+     * @return 返回Json实例
      */
-    private static JSONObject getValueJson(Class valueClass) {
-        JSONObject root = new JSONObject();
-        Field[] declaredFields = valueClass.getDeclaredFields();
-        for (Field declaredField : declaredFields) {
-            declaredField.setAccessible(true);
-
-            // 获取Json属性名
-            JsonProperty jsonPropertyAnno = declaredField.getAnnotation(JsonProperty.class);
-            String key = declaredField.getName();
+    public static Object getJsonExample(Class<?> clazz) {
+        return walkThroughClassAttrs(clazz, (targetField) -> {
+            JsonProperty jsonPropertyAnno = targetField.getAnnotation(JsonProperty.class);
+            String key = targetField.getName();
             if (jsonPropertyAnno != null && !jsonPropertyAnno.value().equals("")) {
                 key = jsonPropertyAnno.value();
             }
+            return key;
+        }, (parentField) -> {
+            return getBasicTypeValue(parentField.getType());
+            //ApiModelMeta apiModelMeta = parentField.getAnnotation(ApiModelMeta.class);
+            //return apiModelMeta != null ? apiModelMeta.detail() : "无说明";
+        });
+    }
 
-            // 递归获取json属性值
-            Class<?> valueType = declaredField.getType();
-            Object value = null;
-            // 如果是list
-            if (List.class.isAssignableFrom(valueType)) {
-                List<Object> valuelist = new ArrayList<>();
-                Type genericType = declaredField.getGenericType();
-                if (genericType instanceof ParameterizedType) {
-                    ParameterizedType parameterizedType = (ParameterizedType) genericType;
-                    // 获取成员变量的泛型类型信息
-                    Type[] actualTypeArguments = parameterizedType.getActualTypeArguments();
-                    // 泛型参数默认是Object
-                    if (actualTypeArguments.length == 0 || actualTypeArguments.length == 1 && actualTypeArguments[0].equals(Object.class)) {
-                        for (int i = 0; i < 3; i++) {
-                            value = new Object();
-                            valuelist.add(value);
-                        }
-                    } else {
-                        // 泛型不是Object，则造3个对象
-                        for (Type actualTypeArgument : actualTypeArguments) {
-                            Class fieldArgClass = (Class) actualTypeArgument;
-                            System.out.println("成员变量的泛型信息：" + fieldArgClass);
-                            for (int i = 0; i < 3; i++) {
-                                value = getValueJson(fieldArgClass);
-                                valuelist.add(value);
-                            }
-                        }
-                    }
-                }
-            } else if (basicType(valueType)) {
-                value = getBasicTypeValue(valueType);
-            } else {
-                // 普通对象
-                value = getValueJson(valueType);
+    /**
+     * 从指定的Class对象生成一个 Json 实例
+     *
+     * @param clazz 目标Class对象
+     * @return 返回Json实例
+     */
+    public static Object getClassFieldDetail(Class<?> clazz) {
+        return walkThroughClassAttrs(clazz, (targetField) -> {
+            JsonProperty jsonPropertyAnno = targetField.getAnnotation(JsonProperty.class);
+            String key = targetField.getName();
+            if (jsonPropertyAnno != null && !jsonPropertyAnno.value().equals("")) {
+                key = jsonPropertyAnno.value();
             }
-            root.put(key, value);
+            return key;
+        }, (parentField) -> {
+            ApiModelMeta apiModelMeta = parentField.getAnnotation(ApiModelMeta.class);
+            return apiModelMeta != null ? apiModelMeta.detail() : "无说明";
+        });
+    }
+
+    /**
+     * 遍历指定Class的所有属性，生成对应的JSONObject，如果有嵌套的对象，则递归生成嵌套的JSONObject
+     *
+     * @param targetClass        目标Class
+     * @param genValue           指定如何从属性生成JSONObject的value
+     * @param genKey             指定如何从属性生成JSONObject的key
+     * @param typeEncounterTimes 记录递归的过程中遇到过多少次某个非基础类，防止无限递归
+     * @param walkField          待walk的属性，递归起始时应该填null，因为此时指定的类并不作为任何类的属性
+     */
+    private static Object doWalk(Class<?> targetClass,
+                                 Function<Field, Object> genValue,
+                                 Function<Field, String> genKey,
+                                 ClassEncounterTimes typeEncounterTimes,
+                                 Field walkField) {
+
+        // targetClass对应的JSONObject对象，每个属性对应JSONObject中的一个键值对
+        JSONObject root = new JSONObject();
+
+        // 如果targetClass不是基础类，则遍历其所有属性，并放入root中
+        if (!basicType(targetClass)) {
+            // 如果过程中遇到3次及以上同一个类型，则判定为递归定义的类型
+            Integer times = typeEncounterTimes.classTimeIncrease(targetClass);
+            if (times >= 3) {
+                root.put("recursive attrs", "...");
+                return root;
+            }
+
+            Field[] fieldsToWalkThrough = targetClass.getDeclaredFields();
+            for (Field field : fieldsToWalkThrough) {
+                field.setAccessible(true);
+                ClassEncounterTimes typeEncounterTimes1 = typeEncounterTimes.clone();
+                // 获取JSONObject的key
+                String key = genKey.apply(field);
+
+                // 递归获取JSONObject的value
+                Object value = recursivelyGenFieldValue(field.getGenericType(), field, genValue, genKey, typeEncounterTimes1);
+
+                root.put(key, value);
+            }
+            return root;
         }
 
-        return root;
+        // 如果targetClass是基础类，则直接生成value值返回
+        // 递归根节点，从 @ApiModelMeta 中获取名称
+        if (walkField == null) {
+            ApiModelMeta apiModelMeta = targetClass.getAnnotation(ApiModelMeta.class);
+            if (apiModelMeta == null) {
+                return targetClass.getSimpleName();
+            }
+            return apiModelMeta.detail();
+        }
+
+        return genValue.apply(walkField);
+    }
+
+    /**
+     * 为了应对诸如：List&lt;List&lt;List&lt;...&gt;&gt;&gt;这样的嵌套情况，使用此递归生成属性的value
+     *
+     * @param fieldGenericType   属性的genericType
+     * @param targetField        目标属性
+     * @param genValue           指定如何从属性生成JSONObject的value
+     * @param genKey             指定如何从属性生成JSONObject的key
+     * @param typeEncounterTimes 记录递归的过程中遇到过多少次某个非基础类，防止无限递归（此方法中有对doWalk的调用，该
+     *                           参数为doWalk准备）
+     * @return 指定属性的value
+     */
+    private static Object recursivelyGenFieldValue(Type fieldGenericType, Field targetField,
+                                                   Function<Field, Object> genValue,
+                                                   Function<Field, String> genKey,
+                                                   ClassEncounterTimes typeEncounterTimes) {
+        Object resultValue;
+
+        GenericTypeWrapper genericTypeWrapper = getGenericTypeWrapper(fieldGenericType);
+
+        // 检查属性是否是List
+        boolean islist = genericTypeWrapper.getActualClass().equals(List.class);
+
+        // 检查属性是否是Map
+        boolean ismap = genericTypeWrapper.getActualClass().equals(Map.class);
+
+        if (islist) {
+            List<Object> valuelist = new ArrayList<>();
+
+            if (genericTypeWrapper.isHasTypeParams()) {
+                // 参数真实类型
+                List<Type> typeParams = genericTypeWrapper.getTypeParams();
+                Type actualType = typeParams.get(0);
+                Object value1 = recursivelyGenFieldValue(actualType, targetField, genValue, genKey, typeEncounterTimes.clone());
+                Object value2 = recursivelyGenFieldValue(actualType, targetField, genValue, genKey, typeEncounterTimes.clone());
+                valuelist.add(value1);
+                valuelist.add(value2);
+            } else {
+                valuelist.addAll(Arrays.asList("An Object", "An Object"));
+            }
+            resultValue = valuelist;
+        } else if (ismap) {
+            Map<Object, Object> valuemap = new HashMap<>();
+
+            if (fieldGenericType instanceof ParameterizedType) {
+                // 参数真实类型
+                ParameterizedType parameterizedType = (ParameterizedType) fieldGenericType;
+                Type[] actualTypeArguments = parameterizedType.getActualTypeArguments();
+
+                Type keyActualType = actualTypeArguments[0];
+                GenericTypeWrapper genericTypeWrapper1 = getGenericTypeWrapper(keyActualType);
+                if (genericTypeWrapper1.isHasTypeParams()) {
+                    throw new IllegalArgumentException("Map的第一个泛型参数只支持基础类型");
+                }
+
+                Type valueActualType = actualTypeArguments[1];
+                Object mapkey;
+                Object mapvalue;
+                //mapkey = recursivelyGenFieldValue(keyActualType, targetField, genValue,genKey, typeEncounterTimes);
+                mapkey = getBasicTypeValue(genericTypeWrapper1.getActualClass());
+                mapvalue = recursivelyGenFieldValue(valueActualType, targetField, genValue, genKey, typeEncounterTimes);
+                valuemap.put(mapkey, mapvalue);
+            }
+            resultValue = valuemap;
+        } else if (basicType((Class<?>) fieldGenericType)) {
+            resultValue = genValue.apply(targetField);
+        } else {
+            // 普通对象
+            resultValue = doWalk((Class<?>) fieldGenericType, genValue, genKey, typeEncounterTimes, targetField);
+        }
+        return resultValue;
+    }
+
+    /**
+     * doWalk方法的wrapper，详见doWalk
+     *
+     * @param targetClass 目标Class
+     * @param genValue    指定如何从属性生成JSONObject的value
+     * @param genKey      指定如何从属性生成JSONObject的key
+     */
+    private static Object walkThroughClassAttrs(Class targetClass,
+                                                Function<Field, String> genKey,
+                                                Function<Field, Object> genValue
+    ) {
+        ClassEncounterTimes typeEncounterTimes = new ClassEncounterTimes();
+        return doWalk(targetClass, genValue, genKey, typeEncounterTimes, null);
+    }
+
+    public static Object getBasicTypeValue(Class<?> valueType) {
+        if (isInt(valueType)) {
+            return (byte) RandomUtils.nextInt(0, 128);
+        } else if (isDouble(valueType)) {
+            return new Random().nextDouble();
+        } else if (isBoolean(valueType)) {
+            int randomInt = RandomUtils.nextInt(0, 2);
+            return randomInt != 0;
+        } else if (isString(valueType)) {
+            return RandomStringUtils.randomAlphabetic(6);
+        } else {
+            return "null";
+        }
     }
 
     private static class ClassEncounterTimes {
         Map<Class, Integer> typeEncounterTimes = new HashMap<>();
+
+        ClassEncounterTimes() {
+        }
+
+        private ClassEncounterTimes(Map<Class, Integer> typeEncounterTimes) {
+            this.typeEncounterTimes = new HashMap<>();
+            this.typeEncounterTimes.putAll(typeEncounterTimes);
+        }
+
+        public ClassEncounterTimes clone() {
+            return new ClassEncounterTimes(this.typeEncounterTimes);
+        }
 
         public Integer classTimeIncrease(Class clazz) {
             Integer times = typeEncounterTimes.get(clazz);
@@ -93,178 +242,5 @@ public class JsonUtils {
         }
     }
 
-
-    private static Object doWalk(Class<?> targetClass,
-                                 Function<Field, Object> genValue,
-                                 Function<Field, String> genKey,
-                                 ClassEncounterTimes typeEncounterTimes,
-                                 Field parentField) {
-        JSONObject root = new JSONObject();
-        if (!basicType(targetClass)) {
-            // 如果过程中遇到3次及以上同一个类型，则判定为递归定义的类型
-            Integer times = typeEncounterTimes.classTimeIncrease(targetClass);
-            if (times >= 3) {
-                root.put("recursive attrs", "...");
-                return root;
-            }
-
-            Field[] targetFieldsToWalkThrough = targetClass.getDeclaredFields();
-            for (Field targetField : targetFieldsToWalkThrough) {
-                targetField.setAccessible(true);
-
-                String key = genKey.apply(targetField);
-                // 递归获取json属性值
-                Object value = null;
-                value = recursivelyGenValue(targetField.getGenericType(), targetField, genValue,genKey, typeEncounterTimes);
-                root.put(key, value);
-            }
-            return root;
-        }
-        Object value = genValue.apply(parentField);
-        return value;
-    }
-
-    private static Object recursivelyGenValue(Type genericType, Field parentField,
-                                              Function<Field, Object> genValue,
-                                              Function<Field, String> genKey,
-                                              ClassEncounterTimes  typeEncounterTimes) {
-        Object value;
-        boolean islist = false;
-        if (genericType instanceof ParameterizedType) {
-            islist = ((ParameterizedType) genericType).getRawType().equals(List.class);
-        } else {
-            Class k = (Class) genericType;
-            islist = k.equals(List.class);
-        }
-        boolean ismap = false;
-        if (genericType instanceof ParameterizedType) {
-            ismap = ((ParameterizedType) genericType).getRawType().equals(Map.class);
-        } else {
-            Class k = (Class) genericType;
-            ismap = k.equals(Map.class);
-        }
-
-        if (islist) {
-            List<Object> valuelist = new ArrayList<>();
-
-            if (genericType instanceof ParameterizedType) {
-                // 参数真实类型
-                ParameterizedType parameterizedType = (ParameterizedType) genericType;
-                Type[] actualTypeArguments = parameterizedType.getActualTypeArguments();
-                Type actualType = actualTypeArguments[0];
-                value = recursivelyGenValue(actualType, null, genValue,genKey, typeEncounterTimes);
-                valuelist.add(value);
-            }
-            value = valuelist;
-        } else if (ismap) {
-            Map<Object, Object> valuemap = new HashMap<>();
-
-            if (genericType instanceof ParameterizedType) {
-                // 参数真实类型
-                ParameterizedType parameterizedType = (ParameterizedType) genericType;
-                Type[] actualTypeArguments = parameterizedType.getActualTypeArguments();
-
-                Type keyActualType = actualTypeArguments[0];
-                Type valueActualType = actualTypeArguments[1];
-                Object mapkey;
-                Object mapvalue;
-                mapkey = recursivelyGenValue(keyActualType, null, genValue,genKey, typeEncounterTimes);
-                mapvalue = recursivelyGenValue(valueActualType, null, genValue,genKey, typeEncounterTimes);
-                valuemap.put(mapkey, mapvalue);
-            }
-            value = valuemap;
-        } else if (basicType((Class<?>) genericType)) {
-            value = genValue.apply(parentField);
-        } else {
-            // 普通对象
-            value = doWalk((Class<?>) genericType, genValue,genKey, typeEncounterTimes, parentField);
-        }
-        return value;
-    }
-
-    private static class User {
-        @ApiModelMeta(detail = "姓名")
-        String name;
-        @ApiModelMeta(detail = "年龄")
-        Integer age;
-        @ApiModelMeta(detail = "额外信息")
-        List<Address> infoMapList;
-    }
-
-    private static class Address {
-        @ApiModelMeta(detail = "住址详情")
-        String detail;
-
-        @ApiModelMeta(detail = "住户")
-        User user;
-    }
-
-    public static Object walkThroughClassAttrs(Class targetClass,
-                                               Function<Field, String> genKey,
-                                               Function<Field, Object> genValue
-                                               ) {
-        ClassEncounterTimes typeEncounterTimes = new ClassEncounterTimes();
-        return doWalk(targetClass, genValue,genKey, typeEncounterTimes, null);
-    }
-
-    public static void main(String[] args) {
-        Object obj = walkThroughClassAttrs(User.class,(targetField) -> {
-            JsonProperty jsonPropertyAnno = targetField.getAnnotation(JsonProperty.class);
-            String key = targetField.getName();
-            if (jsonPropertyAnno != null && !jsonPropertyAnno.value().equals("")) {
-                key = jsonPropertyAnno.value();
-            }
-            return key;
-        }, (parentField) -> {
-            ApiModelMeta apiModelMeta = parentField.getAnnotation(ApiModelMeta.class);
-            return apiModelMeta != null ? apiModelMeta.detail() : "无说明";
-        });
-        System.out.println(obj);
-    }
-
-    private static boolean isInt(Class<?> clazzA) {
-        return clazzA == Byte.class || clazzA == Short.class || clazzA == Integer.class || clazzA == Long.class ||
-                clazzA == byte.class || clazzA == short.class || clazzA == int.class || clazzA == long.class;
-    }
-
-    private static boolean isDouble(Class<?> clazzA) {
-        return clazzA == Double.class || clazzA == Float.class ||
-                clazzA == double.class || clazzA == float.class;
-    }
-
-    private static boolean isBoolean(Class<?> clazzA) {
-        return clazzA == Boolean.class ||
-                clazzA == boolean.class;
-    }
-
-    private static boolean isString(Class<?> clazzA) {
-        return clazzA == String.class;
-    }
-
-    private static Object getBasicTypeValue(Class<?> valueType) {
-        if (isInt(valueType)) {
-            return (byte) RandomUtils.nextInt(0, 128);
-        } else if (isDouble(valueType)) {
-            return (double) new Random().nextDouble();
-        } else if (isBoolean(valueType)) {
-            int randomInt = RandomUtils.nextInt(0, 2);
-            return randomInt == 0 ? false : true;
-        } else if (isString(valueType)) {
-            return RandomStringUtils.randomAlphabetic(6);
-        } else {
-            return "null";
-        }
-    }
-
-    private static boolean basicType(Class<?> valueType) {
-        if (valueType.equals(String.class)) {
-            return true;
-        }
-        try {
-            return ((Class) valueType.getField("TYPE").get(null)).isPrimitive();
-        } catch (Exception e) {
-            return false;
-        }
-    }
 
 }

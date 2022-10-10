@@ -1,6 +1,5 @@
 package fit.wenchao.apidocs.apiInfoPlugins;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import fit.wenchao.apidocs.*;
 import fit.wenchao.apidocs.utils.JsonUtils;
 import org.springframework.stereotype.Component;
@@ -22,19 +21,7 @@ public class ParamsDetailPlugin implements ApiInfoPlugin {
             if(apiParamType.equals(ApiParamType.BODY)) {
                 Class<?> bodyClass = parameterAnno.bodyClass();
                 if(!bodyClass.equals(Void.class)) {
-                    paramDetail = JsonUtils.walkThroughClassAttrs(bodyClass, (targetField) -> {
-                        ApiModelMeta anno = targetField.getAnnotation(ApiModelMeta.class);
-                        String key = targetField.getName();
-                        if (anno != null && !anno.value().equals("")) {
-                            key = anno.value();
-                        }
-                        return key;
-                    },( field) ->{
-                        ApiModelMeta anno = field.getAnnotation(ApiModelMeta.class);
-                        if(anno != null)
-                            return anno.detail()  ;
-                        return "无说明";
-                    });
+                    paramDetail = JsonUtils.getClassFieldDetail(bodyClass);
                     apiDetailMap.put(parameterAnno.name(), paramDetail);
                 }
             }

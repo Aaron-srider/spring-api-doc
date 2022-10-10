@@ -1,7 +1,6 @@
 package fit.wenchao.apidocs.web;
 
 import com.alibaba.fastjson.JSONObject;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import fit.wenchao.apidocs.*;
 import fit.wenchao.apidocs.properties.ApiDocProperties;
 import fit.wenchao.apidocs.utils.ApiDocUtils;
@@ -9,21 +8,16 @@ import fit.wenchao.apidocs.utils.ClasspathPackageScanner;
 import fit.wenchao.apidocs.utils.JsonUtils;
 import fit.wenchao.apidocs.utils.VarCaseConvertUtils;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.RandomStringUtils;
-import org.apache.commons.lang3.RandomUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ApplicationContext;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.PostConstruct;
 import java.io.IOException;
-import java.lang.annotation.Annotation;
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -155,7 +149,7 @@ public class ApiDocController {
                             .detail(detail)
                             .id(apiInfoContext.getId());
 
-                    JSONObject bodyJsonExample = new JSONObject();
+                    Object bodyJsonExample;
                     if(apiParamType.equals(ApiParamType.BODY)) {
                         Class<?> bodyClass = parameterAnno.bodyClass();
                         if(!bodyClass.equals(Void.class)) {

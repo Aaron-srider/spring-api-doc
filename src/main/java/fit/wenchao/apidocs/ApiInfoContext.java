@@ -1,7 +1,5 @@
 package fit.wenchao.apidocs;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
@@ -11,10 +9,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Data
-@Accessors(chain = true)
-@Builder
 @NoArgsConstructor
-@AllArgsConstructor
+@Accessors(chain = true)
 public class ApiInfoContext {
     public void resetInfo(){
         this.method = null;
@@ -24,13 +20,19 @@ public class ApiInfoContext {
         this.apiDesc = null;
         this.parameterAnnos = new ArrayList<>();
     }
+
     Method method;
     String url;
     String httpMethod;
     String apiName;
     String apiDesc;
     List<ApiParameter> parameterAnnos;
+
+    /**
+     * 给API或Module分配的自增id
+     */
     Long counter = 0L;
+
     public Long getId() {
         return counter++;
     }
