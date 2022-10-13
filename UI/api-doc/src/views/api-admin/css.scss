@@ -1,0 +1,131 @@
+@import '~@/styles/common-style.scss';
+
+* {
+    // font-family: Open Sans,sans-serif;
+}
+
+.module-title {
+    font-size: 26px;
+    font-weight: bold;
+    border-bottom: 1px solid $google-gray-400;
+    cursor: pointer;
+}
+
+
+.api-title {
+    border-radius: 4px;
+    font-size: 20px;
+    border: 1px solid $google-gray-300;
+    cursor: pointer;
+}
+
+.section-title {
+    font-size: 18px;
+    font-weight: bold;
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+.table-header {
+    font-weight: bold;
+    border-top: 1px solid $google-gray-300;
+    border-left: 1px solid $google-gray-300;
+}
+
+.table-header-cell {
+    padding: 10px;
+    border-bottom: 1px solid $google-gray-300;
+    border-right: 1px solid $google-gray-300;
+}
+
+
+.table {
+    border-left: 1px solid $google-gray-300;
+}
+
+
+.table-cell {
+    padding: 10px;
+    border-bottom: 1px solid $google-gray-300;
+    border-right: 1px solid $google-gray-300;
+}
+
+
+$get-color: #49cc90;
+$post-color: #61affe;
+$put-color: #fca130;
+$delete-color: #f93e3e;
+
+
+.get-method-banner {
+    background-color: rgba(73, 204, 144, .1);
+    border-color: #49cc90;
+}
+
+.post-method-banner {
+    background-color: rgba(97, 175, 254, .1);
+    border-color: #61affe;
+}
+
+
+.put-method-banner {
+    background-color: rgba(252, 161, 48, .1);
+    border-color: #fca130;
+}
+
+.delete-method-banner {
+    background-color: rgba(249, 62, 62, .1);
+    border-color: #f93e3e;
+}
+
+
+.get-method-tag {
+    color: #fff;
+    background-color: $get-color;
+    border-radius: 3px;
+    text-align: center;
+    padding: 6px 15px;
+    min-width: 80px;
+    font-size: 14px;
+    font-weight: 700;
+    font-family: Titillium Web, sans-serif;
+}
+
+
+.post-method-tag {
+    color: #fff;
+    background-color: $post-color;
+    border-radius: 3px;
+    text-align: center;
+    padding: 6px 15px;
+    min-width: 80px;
+    font-size: 14px;
+    font-weight: 700;
+    font-family: Titillium Web, sans-serif;
+}
+
+
+.put-method-tag {
+    color: #fff;
+    background-color: $put-color;
+    border-radius: 3px;
+    text-align: center;
+    padding: 6px 15px;
+    min-width: 80px;
+    font-size: 14px;
+    font-weight: 700;
+    font-family: Titillium Web, sans-serif;
+}
+
+
+.delete-method-tag {
+    color: #fff;
+    background-color: $delete-color;
+    border-radius: 3px;
+    text-align: center;
+    padding: 6px 15px;
+    min-width: 80px;
+    font-size: 14px;
+    font-weight: 700;
+    font-family: Titillium Web, sans-serif;
+}

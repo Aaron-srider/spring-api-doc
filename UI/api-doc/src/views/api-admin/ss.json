@@ -1,0 +1,32 @@
+{
+    "test_embedded_list": {
+        "tests": [
+            {
+                "name": "ty06pk",
+                "test_test_vo": {
+                    "address": "og2dq2",
+                    "id": 105
+                },
+                "age": 32
+            },
+            {
+                "name": "qu49y2",
+                "test_test_vo": {
+                    "address": "rhwb1d",
+                    "id": 100
+                },
+                "age": 5
+            },
+            {
+                "name": "rpnvmo",
+                "test_test_vo": {
+                    "address": "osogep",
+                    "id": 82
+                },
+                "age": 26
+            }
+        ]
+    }
+}
+
+
